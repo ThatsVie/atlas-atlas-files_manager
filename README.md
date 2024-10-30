@@ -1407,6 +1407,447 @@ ebc1035b29b1478a8e70854f25fa2b2"  // SHA1 hash of "toto1234!"
 
 </details>
 
+### Task 5: First File
+
+This task implements file management functionality, allowing users to upload files or create folders. The files are saved both in the database and locally on disk.
+
+<details>
+  <summary><strong>Curriculum Instructions</strong></summary>
+
+In the file `routes/index.js`, add a new endpoint:
+
+- **POST /files => FilesController.postUpload**
+
+Inside `controllers`, add a file `FilesController.js` containing the new endpoint:
+
+1. **POST /files** should create a new file in the database and on disk:
+   - **Authorization**: Retrieve the user based on the token. If not found, return `401 Unauthorized`.
+   - **Parameters**:
+     - `name`: Required, representing the filename.
+     - `type`: Required, options are `folder`, `file`, or `image`.
+     - `parentId`: Optional, representing the ID of the parent folder (default is `0`, the root folder).
+     - `isPublic`: Optional, a boolean indicating if the file is public (default is `false`).
+     - `data`: Required for types `file` and `image`, containing the Base64 content of the file.
+   - **Validation**:
+     - If `name` is missing, return `400 Missing name`.
+     - If `type` is missing or invalid, return `400 Missing type`.
+     - If `data` is missing and type is not `folder`, return `400 Missing data`.
+     - If `parentId` is specified and:
+       - No file with this ID exists, return `400 Parent not found`.
+       - The found file is not a folder, return `400 Parent is not a folder`.
+   - **Database Structure**:
+     - For `folder` type: Save the new file document in the database and return with status `201 Created`.
+     - For `file` or `image` type:
+       - Store the file data as a Base64-decoded file at a unique path within the folder specified by `FOLDER_PATH` (or `/tmp/files_manager` by default).
+       - Save the new file document in the database with the file’s `localPath` and return with status `201 Created`.
+   
+Example usage with `curl`:
+```bash
+curl 0.0.0.0:5000/connect -H "Authorization: Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE=" ; echo ""
+{"token":"f21fb953-16f9-46ed-8d9c-84c6450ec80f"}
+
+curl -XPOST 0.0.0.0:5000/files -H "X-Token: f21fb953-16f9-46ed-8d9c-84c6450ec80f" -H "Content-Type: application/json" -d '{ "name": "myText.txt", "type": "file", "data": "SGVsbG8gV2Vic3RhY2shCg==" }' ; echo ""
+{"id":"5f1e879ec7ba06511e683b22","userId":"5f1e7cda04a394508232559d","name":"myText.txt","type":"file","isPublic":false,"parentId":0}
+
+ls /tmp/files_manager/
+2a1f4fc3-687b-491a-a3d2-5808a02942c9
+
+cat /tmp/files_manager/2a1f4fc3-687b-491a-a3d2-5808a02942c9 
+Hello Webstack!
+```
+
+</details>
+
+<details>
+  <summary><strong>Steps and Code Implementation</strong></summary>
+
+1. **Define Environment Variables** (Optional): You can add `FOLDER_PATH=/tmp/files_manager` to `.env` to set a custom storage path.
+
+2. **Update Routes**:
+   - In `routes/index.js`, add:
+     ```javascript
+     router.post('/files', FilesController.postUpload);
+     ```
+
+3. **Implement `FilesController.js`**:
+   - Here’s the code to handle file upload and storage:
+     ```javascript
+     // controllers/FilesController.js
+     import { v4 as uuidv4 } from 'uuid';
+     import dbClient from '../utils/db.js';
+     import redisClient from '../utils/redis.js';
+     import { promises as fs } from 'fs';
+     import path from 'path';
+     import { ObjectId } from 'mongodb';
+
+     class FilesController {
+         static async postUpload(req, res) {
+             const token = req.headers['x-token'];
+             if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+             const userId = await redisClient.get(`auth_${token}`);
+             if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+             const { name, type, parentId = 0, isPublic = false, data } = req.body;
+             if (!name) return res.status(400).json({ error: 'Missing name' });
+             if (!['folder', 'file', 'image'].includes(type)) return res.status(400).json({ error: 'Missing type' });
+             if (!data && type !== 'folder') return res.status(400).json({ error: 'Missing data' });
+
+             let parentFile = null;
+             if (parentId !== 0) {
+                 parentFile = await dbClient.db.collection('files').findOne({ _id: new ObjectId(parentId) });
+                 if (!parentFile) return res.status(400).json({ error: 'Parent not found' });
+                 if (parentFile.type !== 'folder') return res.status(400).json({ error: 'Parent is not a folder' });
+             }
+
+             const newFile = { userId, name, type, isPublic, parentId };
+             if (type === 'folder') {
+                 const result = await dbClient.db.collection('files').insertOne(newFile);
+                 return res.status(201).json({ id: result.insertedId, ...newFile });
+             }
+
+             const folderPath = process.env.FOLDER_PATH || '/tmp/files_manager';
+             await fs.mkdir(folderPath, { recursive: true });
+             const localPath = path.join(folderPath, uuidv4());
+             await fs.writeFile(localPath, Buffer.from(data, 'base64'));
+
+             newFile.localPath = localPath;
+             const result = await dbClient.db.collection('files').insertOne(newFile);
+             return res.status(201).json({ id: result.insertedId, ...newFile });
+         }
+     }
+
+     export default FilesController;
+     ```
+
+4. **Testing with `curl`**:
+   - **Connect to get Token**:
+     ```bash
+     curl 0.0.0.0:5000/connect -H "Authorization: Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE="
+     {"token":"<generated_token>"}
+     ```
+
+   - **Create a File**:
+     ```bash
+     curl -XPOST 0.0.0.0:5000/files -H "X-Token: <generated_token>" -H "Content-Type: application/json" -d '{
+       "name": "myText.txt",
+       "type": "file",
+       "data": "SGVsbG8gV2Vic3RhY2shCg=="
+     }'
+     ```
+
+   - **Create a Folder**:
+     ```bash
+     curl -XPOST 0.0.0.0:5000/files -H "X-Token: <generated_token>" -H "Content-Type: application/json" -d '{
+       "name": "images",
+       "type": "folder"
+     }'
+     ```
+
+5. **Verify File Storage**:
+   - Check the `/tmp/files_manager/` folder to confirm the file’s creation and verify its contents:
+     ```bash
+     ls /tmp/files_manager/
+     cat /tmp/files_manager/<file_uuid>
+     ```
+
+</details>
+<details>
+  <summary><strong>Testing with Postman</strong></summary>
+
+1. **Setup**:
+   - Open Postman and ensure you’re working in a new or appropriate workspace.
+   - Set the **base URL** for your requests to `http://0.0.0.0:5000`.
+
+2. **Step 1: Connect to Get Token**:
+   - Create a **GET** request to `/connect`.
+   - Add an **Authorization** header using Basic Auth:
+     - **Username**: `bob@dylan.com`
+     - **Password**: `toto1234!`
+   - Click **Send**. You should receive a response with a token:
+     ```json
+     {
+       "token": "f21fb953-16f9-46ed-8d9c-84c6450ec80f"
+     }
+     ```
+   - **Save** this token; it will be used in subsequent requests.
+
+3. **Step 2: Create a File**:
+   - Create a **POST** request to `/files`.
+   - Set the **X-Token** header to the token you received in the previous step.
+   - In the **Body** tab, choose **raw** and **JSON** format, and include the following JSON data:
+     ```json
+     {
+       "name": "myText.txt",
+       "type": "file",
+       "data": "SGVsbG8gV2Vic3RhY2shCg=="
+     }
+     ```
+   - Click **Send**. You should see a response similar to:
+     ```json
+     {
+       "id": "5f1e879ec7ba06511e683b22",
+       "userId": "5f1e7cda04a394508232559d",
+       "name": "myText.txt",
+       "type": "file",
+       "isPublic": false,
+       "parentId": 0
+     }
+     ```
+
+4. **Step 3: Create a Folder**:
+   - Repeat the **POST** request to `/files` with the following JSON data in the body:
+     ```json
+     {
+       "name": "images",
+       "type": "folder"
+     }
+     ```
+   - Click **Send**. You should see a response similar to:
+     ```json
+     {
+       "id": "5f1e881cc7ba06511e683b23",
+       "userId": "5f1e7cda04a394508232559d",
+       "name": "images",
+       "type": "folder",
+       "isPublic": false,
+       "parentId": 0
+     }
+     ```
+
+5. **Verification**:
+   - For file types, check the contents of the `/tmp/files_manager/` directory on your server to confirm the file was saved locally.
+   - Use `ls /tmp/files_manager/` to confirm the file, and `cat /tmp/files_manager/<file_uuid>` to read its content.
+
+6. **Troubleshooting with Postman**:
+   - **Authorization**: If you receive a `401 Unauthorized` error, confirm your token and ensure Redis is running.
+   - **Missing Fields**: Verify all required fields (`name`, `type`, `data` for files) are included in the request payload.
+
+</details>
+
+
+<details>
+  <summary><strong>Explanation: Who, What, Where, When, Why, How</strong></summary>
+
+- **What**: This task implements file storage functionality, adding an endpoint to save files or folders in both the database and local storage.
+- **Where**: Code changes were made in `FilesController.js` for the controller logic and `routes/index.js` for routing.
+- **Why**: This feature allows users to upload files and create folders, adding structure and persistence to the application.
+- **How**: By using an authorization token for user validation, saving the data locally if it’s a file, and storing metadata in MongoDB.
+- **Who**: This feature is critical for users interacting with file storage in the application, providing persistence and a structured file system.
+
+</details>
+
+
+
+### Task 6: Get and List Files
+
+This task enables users to retrieve specific files by their ID and list all files under a given parent directory with pagination.
+
+<details>
+  <summary><strong>Curriculum Instructions</strong></summary>
+
+In the file `routes/index.js`, add two new endpoints:
+
+- **GET /files/:id => FilesController.getShow**
+- **GET /files => FilesController.getIndex**
+
+Inside `controllers`, add methods in `FilesController.js` for these endpoints:
+
+1. **GET /files/:id** retrieves a file by ID:
+   - **Authorization**: Retrieve the user based on the token. If not found, return `401 Unauthorized`.
+   - **Validation**:
+     - If no file document exists for the given ID and user, return `404 Not found`.
+   - **Response**: Return the file document if found, with status `200 OK`.
+
+2. **GET /files** retrieves all files for a specific `parentId` with pagination:
+   - **Authorization**: Retrieve the user based on the token. If not found, return `401 Unauthorized`.
+   - **Parameters**:
+     - `parentId`: Optional. Default is `0` (root folder).
+     - `page`: Optional. Default is `0`. Each page contains up to 20 items.
+   - **Response**: Returns an array of file documents. Pagination can be handled through MongoDB’s `skip` and `limit` functionality.
+
+Example usage with `curl`:
+```bash
+curl 0.0.0.0:5000/connect -H "Authorization: Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE=" ; echo ""
+{"token":"f21fb953-16f9-46ed-8d9c-84c6450ec80f"}
+
+curl -X GET 0.0.0.0:5000/files/5f1e879ec7ba06511e683b22 -H "X-Token: f21fb953-16f9-46ed-8d9c-84c6450ec80f" ; echo ""
+{"id":"5f1e879ec7ba06511e683b22","userId":"5f1e7cda04a394508232559d","name":"myText.txt","type":"file","isPublic":false,"parentId":0}
+
+curl -X GET "0.0.0.0:5000/files?parentId=5f1e881cc7ba06511e683b23&page=0" -H "X-Token: f21fb953-16f9-46ed-8d9c-84c6450ec80f" ; echo ""
+[{"id":"5f1e8896c7ba06511e683b25","userId":"5f1e7cda04a394508232559d","name":"image.png","type":"image","isPublic":true,"parentId":"5f1e881cc7ba06511e683b23"}]
+```
+
+</details>
+
+<details>
+  <summary><strong>Steps and Code Implementation</strong></summary>
+
+1. **Update Routes**:
+   - In `routes/index.js`, add:
+     ```javascript
+     router.get('/files/:id', FilesController.getShow);
+     router.get('/files', FilesController.getIndex);
+     ```
+
+2. **Implement `FilesController.js`**:
+   - Here’s the code to retrieve files by ID and list files under a specific `parentId`:
+     ```javascript
+     // controllers/FilesController.js
+     import { v4 as uuidv4 } from 'uuid';
+     import dbClient from '../utils/db.js';
+     import redisClient from '../utils/redis.js';
+     import { promises as fs } from 'fs';
+     import path from 'path';
+     import { ObjectId } from 'mongodb';
+
+     class FilesController {
+
+         static async getShow(req, res) {
+             const token = req.headers['x-token'];
+             if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+             const userId = await redisClient.get(`auth_${token}`);
+             if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+             const { id } = req.params;
+             if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Not found' });
+
+             const file = await dbClient.db.collection('files').findOne({ _id: new ObjectId(id), userId });
+             if (!file) return res.status(404).json({ error: 'Not found' });
+
+             return res.status(200).json(file);
+         }
+
+         static async getIndex(req, res) {
+             const token = req.headers['x-token'];
+             if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+             const userId = await redisClient.get(`auth_${token}`);
+             if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+             const { parentId = '0', page = 0 } = req.query;
+             let parentQuery;
+
+             if (parentId === '0') {
+                 parentQuery = { parentId: 0 };
+             } else if (ObjectId.isValid(parentId)) {
+                 parentQuery = { parentId: new ObjectId(parentId) };
+             } else {
+                 return res.status(400).json({ error: 'Invalid parentId' });
+             }
+
+             const files = await dbClient.db.collection('files')
+                 .find({ userId, ...parentQuery })
+                 .skip(parseInt(page, 10) * 20)
+                 .limit(20)
+                 .toArray();
+
+             return res.status(200).json(files);
+         }
+     }
+
+     export default FilesController;
+     ```
+
+</details>
+
+<details>
+  <summary><strong>Usage and Testing</strong></summary>
+
+### Starting the Server
+```bash
+npm run start-server
+```
+
+### 1. Obtain Authentication Token
+To interact with the API, first obtain a token:
+```bash
+curl 0.0.0.0:5000/connect -H "Authorization: Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE=" ; echo ""
+```
+- Expected Response: `{"token":"<token_here>"}`
+
+### 2. Testing `GET /files/:id`
+Retrieve a file by its ID:
+```bash
+curl 0.0.0.0:5000/files/<FILE_ID> -H "X-Token: <token_here>" ; echo ""
+```
+- **Success Response**: JSON object of the file if it exists.
+- **Error Responses**:
+  - **401 Unauthorized**: If `X-Token` is invalid.
+  - **404 Not Found**: If the file does not exist or does not belong to the user.
+
+### 3. Testing `GET /files`
+Retrieve a list of files under a specific `parentId`, with pagination:
+```bash
+curl -X GET "0.0.0.0:5000/files?parentId=<PARENT_ID>&page=0" -H "X-Token: <token_here>" ; echo ""
+```
+- **Success Response**: Array of file documents.
+- **Error Responses**:
+  - **401 Unauthorized**: If `X-Token` is invalid.
+  - **400 Invalid parentId**: If `parentId` is not valid.
+
+### 4. Testing with Postman
+- **Authorization**: Add `X-Token` header.
+- **Endpoints**:
+  - `GET /files/:id`
+  - `GET /files?parentId=<PARENT_ID>&page=<PAGE>`
+
+</details>
+
+<details>
+  <summary><strong>Troubleshooting</strong></summary>
+
+### Common Issues and Solutions
+
+1. **Unauthorized (401) Error**
+   - **Cause**: Invalid or missing `X-Token`.
+   - **Solution**: Ensure you have a valid token from the `/connect` endpoint.
+
+2. **File Not Found (404)**
+   - **Cause**: The `id` does not match any file owned by the user.
+   - **Solution**: Verify `id` in MongoDB and ensure correct `userId` association.
+
+3. **Empty List on GET /files**
+   - **Cause**: No files found for the `parentId` or the user.
+   - **Solution**: Confirm files exist under the specified `parentId`.
+
+4. **Invalid parentId (400) Error**
+   - **Cause**: `parentId` is not a valid MongoDB ObjectId.
+   - **Solution**: Use a valid ObjectId format for `parentId`.
+
+5. **MongoDB ObjectId Errors**
+   - **Cause**: Passing an invalid ID format to MongoDB queries.
+   - **Solution**: Ensure IDs are either valid ObjectIds or `0`.
+
+### Also
+
+1. **Using a Missing or Incorrect Token**
+   - Response: `401 Unauthorized`
+   - **Solution**: Re-obtain a token and retry the request.
+
+2. **File Not Found Despite Existing in Database**
+   - **Cause**: File does not match the authenticated user's `userId`.
+   - **Solution**: Check that the `userId` in Redis matches the file's `userId` in MongoDB.
+
+3. **No Files Returned from GET /files with Correct parentId**
+   - **Cause**: No files are linked under the
+
+ specified `parentId`.
+   - **Solution**: Confirm the file insertion was successful and that `parentId` is correct.
+
+</details>
+
+<details>
+  <summary><strong>Explanation: Who, What, Where, When, Why, How</strong></summary>
+
+- **What**: This task implements endpoints to retrieve individual files and lists of files within specific directories.
+- **Where**: Code changes were made in `FilesController.js` for the controller logic and `routes/index.js` for routing.
+- **Why**: These endpoints allow users to navigate the file structure and retrieve specific files, essential for file management functionality.
+- **How**: By using authorization tokens to validate requests, verifying file ownership, and using MongoDB’s ObjectId format to ensure accurate querying.
+- **Who**: This feature is critical for users needing to interact with their file system, allowing them to access files and organize them within directories.
+
+</details>
 
 
 
