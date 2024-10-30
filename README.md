@@ -201,7 +201,7 @@ npm install
 
 ---
 
-## Known Warnings and Vulnerabilities
+### Known Warnings and Vulnerabilities
 
 This project follows the curriculum specifications, which use specific package versions that may have deprecation warnings or vulnerabilities. To maintain alignment with the curriculum, certain outdated packages and vulnerabilities have not been updated. 
 
@@ -1119,7 +1119,7 @@ To verify that the `POST /users` endpoint works, use the following methods:
 
 </details>
 
-## Task 4: Authenticate a User
+### Task 4: Authenticate a User
 
 In this task, we implemented a user authentication system that enables secure login, profile retrieval, and logout using token-based sessions.
 
@@ -1307,6 +1307,7 @@ class UsersController {
 
 export default UsersController;
 ```
+</details>
 
 <details>
   <summary><strong>Testing with curl and Postman</strong></summary>
