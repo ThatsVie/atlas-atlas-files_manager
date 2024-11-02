@@ -1850,5 +1850,682 @@ curl -X GET "0.0.0.0:5000/files?parentId=<PARENT_ID>&page=0" -H "X-Token: <token
 
 </details>
 
+### Task 7: File Publish/Unpublish
+
+In this task, we implemented functionality to publish and unpublish files, allowing users to make files publicly accessible or restrict them. This is controlled by the `isPublic` field for each file.
+
+<details>
+  <summary><strong>Curriculum Instructions</strong></summary>
+
+In the `routes/index.js` file, add two new endpoints:
+
+- **PUT /files/:id/publish** — handled by `FilesController.putPublish`
+- **PUT /files/:id/unpublish** — handled by `FilesController.putUnpublish`
+
+Inside `controllers/FilesController.js`, add the following logic:
+
+1. **PUT /files/:id/publish**
+   - Sets the `isPublic` field to `true` on the file document with the specified ID.
+   - **Authorization**: Verify the user's session using the token. If not found, return a `401 Unauthorized` error.
+   - **File Validation**: If the file is not found or does not belong to the user, return a `404 Not found` error.
+   - **Response**: Return the updated file document with `isPublic` set to `true` and status `200 OK`.
+
+2. **PUT /files/:id/unpublish**
+   - Sets the `isPublic` field to `false` on the file document with the specified ID.
+   - **Authorization**: Verify the user's session using the token. If not found, return a `401 Unauthorized` error.
+   - **File Validation**: If the file is not found or does not belong to the user, return a `404 Not found` error.
+   - **Response**: Return the updated file document with `isPublic` set to `false` and status `200 OK`.
+
+**Example Usage**:
+```bash
+# Obtain a token
+curl 0.0.0.0:5000/connect -H "Authorization: Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE="
+
+# Publish a file
+curl -X PUT 0.0.0.0:5000/files/<FILE_ID>/publish -H "X-Token: <TOKEN>"
+
+# Unpublish a file
+curl -X PUT 0.0.0.0:5000/files/<FILE_ID>/unpublish -H "X-Token: <TOKEN>"
+```
+
+</details>
+
+<details>
+  <summary><strong>Steps and Code Implementation</strong></summary>
+
+1. **Update Routes in `routes/index.js`**:
+   - Add routes for publishing and unpublishing files:
+     ```javascript
+     router.put('/files/:id/publish', FilesController.putPublish);
+     router.put('/files/:id/unpublish', FilesController.putUnpublish);
+     ```
+
+2. **Implement `FilesController.js`**:
+   - Here’s the code to handle publishing and unpublishing files:
+     ```javascript
+     // controllers/FilesController.js
+     static async putPublish(req, res) {
+         const token = req.headers['x-token'];
+         if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+         const userId = await redisClient.get(`auth_${token}`);
+         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+         const { id } = req.params;
+         if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Not found' });
+
+         const file = await dbClient.db.collection('files').findOneAndUpdate(
+             { _id: new ObjectId(id), userId },
+             { $set: { isPublic: true } },
+             { returnDocument: 'after' }
+         );
+
+         if (!file.value) return res.status(404).json({ error: 'Not found' });
+
+         return res.status(200).json(file.value);
+     }
+
+     static async putUnpublish(req, res) {
+         const token = req.headers['x-token'];
+         if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+         const userId = await redisClient.get(`auth_${token}`);
+         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+         const { id } = req.params;
+         if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Not found' });
+
+         const file = await dbClient.db.collection('files').findOneAndUpdate(
+             { _id: new ObjectId(id), userId },
+             { $set: { isPublic: false } },
+             { returnDocument: 'after' }
+         );
+
+         if (!file.value) return res.status(404).json({ error: 'Not found' });
+
+         return res.status(200).json(file.value);
+     }
+     ```
+
+</details>
+
+<details>
+  <summary><strong>Usage and Testing</strong></summary>
+
+### 1. Obtain Authentication Token
+To perform these actions, you need an authorization token.
+```bash
+curl 0.0.0.0:5000/connect -H "Authorization: Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE=" ; echo ""
+```
+- Expected Response: `{"token":"<TOKEN>"}`
+
+### 2. Publish a File
+Publish a file by setting `isPublic` to `true`.
+```bash
+curl -X PUT 0.0.0.0:5000/files/<FILE_ID>/publish -H "X-Token: <TOKEN>" ; echo ""
+```
+- Expected Response: The file JSON object with `"isPublic": true`.
+
+### 3. Check Published Status
+Retrieve the file’s current status to confirm `isPublic` is `true`.
+```bash
+curl -X GET 0.0.0.0:5000/files/<FILE_ID> -H "X-Token: <TOKEN>" ; echo ""
+```
+
+### 4. Unpublish a File
+Unpublish a file by setting `isPublic` to `false`.
+```bash
+curl -X PUT 0.0.0.0:5000/files/<FILE_ID>/unpublish -H "X-Token: <TOKEN>" ; echo ""
+```
+- Expected Response: The file JSON object with `"isPublic": false`.
+
+### 5. Check Unpublished Status
+Retrieve the file’s current status to confirm `isPublic` is `false`.
+```bash
+curl -X GET 0.0.0.0:5000/files/<FILE_ID> -H "X-Token: <TOKEN>" ; echo ""
+```
+
+</details>
+
+<details>
+  <summary><strong>Testing with Postman</strong></summary>
+
+Start the server:
+
+1. **Open your terminal** in the root directory of your project (e.g., `atlas-files_manager`).
+2. Run the following command:
+   ```bash
+   npm run start-server
+   ```
+   This should start the server and connect it to MongoDB and Redis (as indicated in your server configuration).
+
+3. Once you see the message indicating the server is running (e.g., `Server running on port 5000`), you can then proceed with testing the API endpoints in Postman. 
+
+### 1. Setup
+   - Open Postman and make sure you're in the correct workspace.
+   - Set the **base URL** for your requests to `http://0.0.0.0:5000`.
+
+### 2. Step 1: Obtain Authentication Token
+   - Create a **GET** request to `/connect`.
+   - In the **Authorization** tab, select **Basic Auth** and input the following credentials:
+     - **Username**: `bob@dylan.com`
+     - **Password**: `toto1234!`
+   - Click **Send**. You should receive a response with a token:
+     ```json
+     {
+       "token": "<generated_token>"
+     }
+     ```
+   - **Save** this token as it will be used in the following requests.
+
+### 3. Step 2: Publish a File
+   - Create a **PUT** request to `/files/:id/publish`.
+   - Replace `:id` in the URL with the actual ID of the file you wish to publish.
+   - In the **Headers** tab, add the following key-value pair:
+     - **Key**: `X-Token`
+     - **Value**: `<generated_token>`
+   - Click **Send**. You should see a response similar to the following, confirming the file has been published:
+     ```json
+     {
+       "_id": "<file_id>",
+       "userId": "<user_id>",
+       "name": "<file_name>",
+       "type": "<file_type>",
+       "isPublic": true,
+       "parentId": "<parent_id>",
+       "localPath": "<file_path>"
+     }
+     ```
+
+### 4. Step 3: Verify Publish Status
+   - Create a **GET** request to `/files/:id` to verify the file's status.
+   - In the **Headers** tab, add the `X-Token` header with your token.
+   - Click **Send** to confirm the `isPublic` status is set to `true`.
+
+### 5. Step 4: Unpublish a File
+   - Create a **PUT** request to `/files/:id/unpublish`.
+   - Replace `:id` in the URL with the file ID you wish to unpublish.
+   - In the **Headers** tab, add the `X-Token` header with your token.
+   - Click **Send**. You should see a response confirming the file has been unpublished:
+     ```json
+     {
+       "_id": "<file_id>",
+       "userId": "<user_id>",
+       "name": "<file_name>",
+       "type": "<file_type>",
+       "isPublic": false,
+       "parentId": "<parent_id>",
+       "localPath": "<file_path>"
+     }
+     ```
+
+### 6. Step 5: Verify Unpublish Status
+   - Create a **GET** request to `/files/:id` to verify the file's status.
+   - In the **Headers** tab, add the `X-Token` header with your token.
+   - Click **Send** to confirm the `isPublic` status is set to `false`.
+
+### Troubleshooting in Postman
+   - **Unauthorized (401)**: Ensure you are using a valid `X-Token` header in your request.
+   - **File Not Found (404)**: Confirm the file ID exists and belongs to the authenticated user.
+   - **Invalid parentId (400)**: Verify the `parentId` format is a valid MongoDB `ObjectId`.
+   - **Response Not Updating**: Refresh or resend the GET request to confirm changes to `isPublic`.
+
+</details>
 
 
+<details>
+  <summary><strong>Troubleshooting</strong></summary>
+
+### Common Issues and Solutions
+
+1. **Unauthorized (401) Error**
+   - **Cause**: Invalid or missing `X-Token` in headers.
+   - **Solution**: Ensure you have a valid token from the `/connect` endpoint and add it in the request header.
+
+2. **File Not Found (404) Error**
+   - **Cause**: The file ID does not exist or does not belong to the authenticated user.
+   - **Solution**: Verify the file’s ID in MongoDB and confirm it belongs to the authenticated user.
+
+3. **File Not Updated**
+   - **Cause**: MongoDB update query may fail if the document doesn’t meet criteria.
+   - **Solution**: Ensure `ObjectId` format for `id` and valid `userId` in the query.
+
+4. **Publish/Unpublish Does Not Reflect in Response**
+   - **Cause**: Possible caching or delayed MongoDB response.
+   - **Solution**: Re-run the `GET /files/:id` to verify the change.
+
+</details>
+
+<details>
+  <summary><strong>Explanation: Who, What, Where, When, Why, How</strong></summary>
+
+- **What**: This task adds functionality to make files publicly accessible (publish) or restricted (unpublish) by updating the `isPublic` field.
+- **Where**: Code changes were made in `FilesController.js` for controller logic and `routes/index.js` for routing.
+- **Why**: This feature enables better file access control by allowing users to decide file visibility.
+- **How**: By validating the user with tokens, updating the `isPublic` field in MongoDB, and returning the updated document.
+- **Who**: Useful for application users who want to manage file visibility within a shared file system.
+
+</details>
+
+
+### Task 8: File Data Retrieval
+
+This task adds an endpoint to retrieve the actual content of a file stored in the application, while enforcing access control based on the file’s `isPublic` status and user authentication.
+
+<details>
+  <summary><strong>Curriculum Instructions</strong></summary>
+
+In the file `routes/index.js`, add the following endpoint:
+
+- **GET /files/:id/data => FilesController.getFile**
+
+In the `FilesController.js`, add the `getFile` endpoint:
+
+1. **GET /files/:id/data** should return the file content based on its ID.
+    - **Authorization**:
+        - If the file is not public (`isPublic: false`) and the request is unauthenticated or made by someone other than the owner, return an error: `404 Not found`.
+    - **Validation**:
+        - If the file’s type is `folder`, return an error: `400 A folder doesn't have content`.
+        - If the file is not found locally, return `404 Not found`.
+    - **Response**:
+        - Retrieve and return the file’s content with the correct MIME type, determined using the `mime-types` module.
+
+**Example usage with `curl`:**
+
+```bash
+# Step 1: Connect and obtain a token
+curl 0.0.0.0:5000/connect -H "Authorization: Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE=" ; echo ""
+# Response: {"token": "<your_token>"}
+
+# Step 2: Upload a file
+curl -X POST 0.0.0.0:5000/files -H "X-Token: <your_token>" -H "Content-Type: application/json" -d '{ "name": "sample.txt", "type": "file", "data": "SGVsbG8gV2Vic3RhY2shCg==" }' ; echo ""
+# Response: {"id":"<file_id>","userId":"<user_id>","name":"sample.txt", ... }
+
+# Step 3: Retrieve the file content (authenticated access)
+curl -X GET 0.0.0.0:5000/files/<file_id>/data -H "X-Token: <your_token>" ; echo ""
+# Expected Output: Hello Webstack!
+
+# Step 4: Unpublish the file (make it private)
+curl -X PUT 0.0.0.0:5000/files/<file_id>/unpublish -H "X-Token: <your_token>" ; echo ""
+# Response: Updated file document with "isPublic": false
+
+# Step 5: Attempt to access the file without authentication (should fail)
+curl -X GET 0.0.0.0:5000/files/<file_id>/data ; echo ""
+# Expected Response: {"error": "Not found"}
+
+# Step 6: Publish the file (make it public)
+curl -X PUT 0.0.0.0:5000/files/<file_id>/publish -H "X-Token: <your_token>" ; echo ""
+# Response: Updated file document with "isPublic": true
+
+# Step 7: Access the file without authentication (should succeed)
+curl -X GET 0.0.0.0:5000/files/<file_id>/data ; echo ""
+# Expected Output: Hello Webstack!
+```
+
+</details>
+
+<details>
+  <summary><strong>Steps and Code Implementation</strong></summary>
+
+1. **Update Routes**:
+    - Add the following route to `routes/index.js`:
+      ```javascript
+      router.get('/files/:id/data', FilesController.getFile);
+      ```
+
+2. **Implement `getFile` in `FilesController.js`**:
+    - The `getFile` method will handle file data retrieval based on the criteria outlined.
+    ```javascript
+    import mime from 'mime-types';
+    import fs from 'fs/promises';
+
+    class FilesController {
+        // Existing methods ...
+
+        static async getFile(req, res) {
+            const { id } = req.params;
+            const token = req.headers['x-token'];
+
+            const file = await dbClient.db.collection('files').findOne({ _id: new ObjectId(id) });
+            if (!file) return res.status(404).json({ error: 'Not found' });
+            if (file.type === 'folder') return res.status(400).json({ error: "A folder doesn't have content" });
+
+            if (!file.isPublic) {
+                const userId = await redisClient.get(`auth_${token}`);
+                if (!userId || userId !== file.userId) return res.status(404).json({ error: 'Not found' });
+            }
+
+            try {
+                const data = await fs.readFile(file.localPath);
+                const mimeType = mime.lookup(file.name);
+                res.setHeader('Content-Type', mimeType);
+                return res.status(200).send(data);
+            } catch (error) {
+                return res.status(404).json({ error: 'Not found' });
+            }
+        }
+    }
+    ```
+
+</details>
+
+<details>
+  <summary><strong>Testing with Postman</strong></summary>
+
+1. **Setup**:
+    - Ensure the server is running and you have a valid token by first authenticating the user.
+
+2. **Obtain Authentication Token**:
+    - Method: `GET`
+    - URL: `http://0.0.0.0:5000/connect`
+    - Headers:
+      - **Authorization**: `Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE=`
+    - Expected Response:
+      ```json
+      { "token": "<your_token>" }
+      ```
+
+3. **Upload a File**:
+    - Method: `POST`
+    - URL: `http://0.0.0.0:5000/files`
+    - Headers:
+      - **X-Token**: `<your_token>`
+      - **Content-Type**: `application/json`
+    - Body (JSON):
+      ```json
+      {
+        "name": "sample.txt",
+        "type": "file",
+        "data": "SGVsbG8gV2Vic3RhY2shCg=="
+      }
+      ```
+    - Expected Response:
+      ```json
+      { "id": "<file_id>", "name": "sample.txt", "isPublic": false, ... }
+      ```
+
+4. **Retrieve File Content (Authenticated)**:
+    - Method: `GET`
+    - URL: `http://0.0.0.0:5000/files/<file_id>/data`
+    - Headers:
+      - **X-Token**: `<your_token>`
+    - Expected Output:
+      - Content of the file: `Hello Webstack!`
+
+5. **Unpublish the File**:
+    - Method: `PUT`
+    - URL: `http://0.0.0.0:5000/files/<file_id>/unpublish`
+    - Headers:
+      - **X-Token**: `<your_token>`
+    - Expected Response:
+      ```json
+      { "id": "<file_id>", "name": "sample.txt", "isPublic": false, ... }
+      ```
+
+6. **Attempt to Access Private File Data Without Authentication**:
+    - Method: `GET`
+    - URL: `http://0.0.0.0:5000/files/<file_id>/data`
+    - Expected Response:
+      ```json
+      { "error": "Not found" }
+      ```
+
+7. **Publish the File**:
+    - Method: `PUT`
+    - URL: `http://0.0.0.0:5000/files/<file_id>/publish`
+    - Headers:
+      - **X-Token**: `<your_token>`
+    - Expected Response:
+      ```json
+      { "id": "<file_id>", "name": "sample.txt", "isPublic": true, ... }
+      ```
+
+8. **Access Public File Data Without Authentication**:
+    - Method: `GET`
+    - URL: `http://0.0.0.0:5000/files/<file_id>/data`
+    - Expected Output:
+      - Content of the file: `Hello Webstack!`
+
+</details>
+
+<details>
+  <summary><strong>Troubleshooting</strong></summary>
+
+- **401 Unauthorized**: Ensure you’re using a valid token.
+- **404 Not Found**:
+  - If the file is private, check if you’re using the correct token for authentication.
+  - Confirm that the file exists by retrieving its details with `GET /files/:id`.
+- **400 A folder doesn’t have content**: This will be returned if you attempt to retrieve data for a folder-type document.
+- **File Not Found on Disk**: Ensure the file exists in the local directory. If not, re-upload the file to test.
+
+</details>
+
+<details>
+  <summary><strong>Explanation: Who, What, Where, When, Why, How</strong></summary>
+
+- **What**: This endpoint retrieves file content based on file ID with MIME type handling.
+- **Where**: New endpoint added to `FilesController.js` and `routes/index.js`.
+- **Why**: To enable secure and authorized access to files, providing controlled file data access.
+- **How**: By checking `isPublic` status, validating user tokens, and using the `mime-types` library to set the correct MIME type.
+- **Who**: Users who need to access file contents securely.
+- **When**: Access is allowed if the file is public or the request is authenticated and owned by the user.
+
+</details>
+
+
+### Task 9: Image Thumbnails
+
+This task involves updating the `POST /files` endpoint to initiate background processing for generating thumbnails for images and modifying the `GET /files/:id/data` endpoint to retrieve these thumbnails based on the requested size.
+
+<details>
+  <summary><strong>Curriculum Instructions</strong></summary>
+
+1. **Update `POST /files` endpoint**:
+   - Start background processing for generating thumbnails when a file of type `image` is stored.
+   - Create a Bull queue named `fileQueue`.
+   - When a new image is stored (both locally and in the database), add a job to `fileQueue` with `userId` and `fileId`.
+
+2. **Create a worker in `worker.js`**:
+   - Use the `bull` module to create a queue named `fileQueue`.
+   - Process jobs in `fileQueue`:
+     - If `fileId` is missing in the job, raise an error: `Missing fileId`.
+     - If `userId` is missing in the job, raise an error: `Missing userId`.
+     - If no document is found in the database based on `fileId` and `userId`, raise an error: `File not found`.
+   - Use the `image-thumbnail` module to generate 3 thumbnails with widths of `500`, `250`, and `100` pixels.
+     - Store each thumbnail in the same location as the original file, appending the width size to the filename (e.g., `_500`, `_250`, `_100`).
+
+3. **Update `GET /files/:id/data` endpoint**:
+   - Accept a query parameter `size` in the endpoint.
+   - `size` can be `500`, `250`, or `100`.
+   - Based on the `size` value, return the correct local file.
+   - If the local file doesn’t exist, return an error: `Not found` with a status code of `404`.
+
+4. **Testing with Terminals**:
+
+   - **Terminal 3**: Start the worker
+     ```bash
+     npm run start-worker
+     ```
+
+   - **Terminal 2**:
+     - Connect and get an authorization token:
+       ```bash
+       curl 0.0.0.0:5000/connect -H "Authorization: Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE=" ; echo ""
+       # Response: {"token":"<token>"}
+       ```
+
+     - Upload an image using a helper script:
+       ```bash
+       python image_upload.py image.png <token> <parent_folder_id>
+       # Expected Response: {"id": "file_id", "userId": "user_id", "name": "image.png", ...}
+       ```
+
+     - Verify thumbnails are generated:
+       ```bash
+       ls /tmp/files_manager/
+       # Expected Output: Original and thumbnails with appended sizes (_100, _250, _500)
+       ```
+
+     - Retrieve the original image:
+       ```bash
+       curl -X GET 0.0.0.0:5000/files/<file_id>/data -so new_image.png ; file new_image.png
+       # Expected Output: Original image dimensions
+       ```
+
+     - Retrieve 100px thumbnail:
+       ```bash
+       curl -X GET 0.0.0.0:5000/files/<file_id>/data?size=100 -so new_image.png ; file new_image.png
+       # Expected Output: 100px image dimensions
+       ```
+
+     - Retrieve 250px thumbnail:
+       ```bash
+       curl -X GET 0.0.0.0:5000/files/<file_id>/data?size=250 -so new_image.png ; file new_image.png
+       # Expected Output: 250px image dimensions
+       ```
+
+</details>
+
+<details>
+  <summary><strong>Steps and Code Implementation</strong></summary>
+
+1. **Install Dependencies**:
+   ```bash
+   npm install bull image-thumbnail
+   ```
+
+2. **Create a Queue and Worker in `worker.js`**:
+   - Set up the `fileQueue` using Bull and configure it to process image files by generating thumbnails.
+   ```javascript
+   import Queue from 'bull';
+   import imageThumbnail from 'image-thumbnail';
+   import fs from 'fs/promises';
+   import path from 'path';
+
+   export const fileQueue = new Queue('fileQueue');
+
+   fileQueue.process(async (job) => {
+     const { fileId, userId } = job.data;
+
+     if (!fileId) throw new Error('Missing fileId');
+     if (!userId) throw new Error('Missing userId');
+
+     const file = await dbClient.db.collection('files').findOne({ _id: new ObjectId(fileId), userId });
+     if (!file) throw new Error('File not found');
+
+     const sizes = [100, 250, 500];
+     for (const size of sizes) {
+       try {
+         const thumbnail = await imageThumbnail(file.localPath, { width: size });
+         const thumbnailPath = path.join('/tmp/files_manager', `${fileId}_${size}`);
+         await fs.writeFile(thumbnailPath, thumbnail);
+       } catch (error) {
+         console.error(`Failed to generate thumbnail of size ${size}`, error);
+       }
+     }
+   });
+   ```
+
+3. **Add Job to Queue in `FilesController.js`**:
+   - When a new image is uploaded, add it to `fileQueue`.
+   ```javascript
+   import { fileQueue } from '../worker';
+
+   if (file.type === 'image') {
+     await fileQueue.add({ fileId: file._id.toString(), userId: file.userId });
+   }
+   ```
+
+4. **Retrieve Thumbnails Based on Size in `FilesController.js`**:
+   - Modify `getFile` method to return thumbnails based on `size` query parameter.
+   ```javascript
+   if (size) {
+       filePath = path.join('/tmp/files_manager', `${id}_${size}`);
+   }
+   ```
+
+</details>
+
+
+<details>
+  <summary><strong>Testing with curl</strong></summary>
+
+1. **Start the Worker**:
+   - Run the worker to handle thumbnail generation in the background.
+   ```bash
+   npm run start-worker
+   ```
+
+2. **Upload an Image and Generate Thumbnails**:
+   ```bash
+   curl -X POST 0.0.0.0:5000/files \
+   -H "X-Token: <User_Token>" \
+   -H "Content-Type: application/json" \
+   -d '{
+     "name": "pugpaw.png",
+     "type": "image",
+     "data": "<Base64_encoded_image_data>"
+   }'
+   ```
+   - Expected Response: Image file details including `fileId`.
+
+3. **Retrieve the Original Image and Thumbnails**:
+
+   - **Original Image**:
+     ```bash
+     curl -X GET 0.0.0.0:5000/files/<fileId>/data \
+     -H "X-Token: <User_Token>" -o pugpaw_original.png
+     ```
+
+   - **100px Thumbnail**:
+     ```bash
+     curl -X GET "0.0.0.0:5000/files/<fileId>/data?size=100" \
+     -H "X-Token: <User_Token>" -o pugpaw_100.png
+     ```
+
+   - **250px Thumbnail**:
+     ```bash
+     curl -X GET "0.0.0.0:5000/files/<fileId>/data?size=250" \
+     -H "X-Token: <User_Token>" -o pugpaw_250.png
+     ```
+
+   - **500px Thumbnail**:
+     ```bash
+     curl -X GET "0.0.0.0:5000/files/<fileId>/data?size=500" \
+     -H "X-Token: <User_Token>" -o pugpaw_500.png
+     ```
+
+4. **Expected Outputs**:
+   - Original image saved as `pugpaw_original.png`.
+   - Thumbnails saved as `pugpaw_100.png`, `pugpaw_250.png`, and `pugpaw_500.png`.
+
+</details>
+
+<details>
+  <summary><strong>Troubleshooting</strong></summary>
+
+- **Corrupt Header Error**:
+   - Encountered errors with some JPEG files due to corrupt headers.
+   - Resolved by using a PNG file, `pugpaw.png`, for consistent testing.
+
+- **JSON Syntax Errors**:
+   - Errors caused by line breaks in the Base64 `data` field.
+   - Fixed by ensuring the Base64 string is a single continuous line.
+
+- **File Not Found Errors**:
+   - Occasionally encountered `404 Not Found` when retrieving thumbnails if the worker hadn’t finished processing.
+   - Solution: Confirmed the worker was actively processing and allowed time for thumbnails to generate before testing retrieval.
+
+</details>
+
+<details>
+  <summary><strong>Explanation: Who, What, Where, When, Why, How</strong></summary>
+
+- **What**: Generates thumbnails for images at 100px, 250px, and 500px widths for efficient retrieval and display.
+- **Where**: Changes made in `worker.js` for processing and `FilesController.js` for retrieval.
+- **Why**: Thumbnails improve performance and optimize image display on various devices.
+- **How**: By using Bull for background processing and `image-thumbnail` to create scaled images.
+- **Who**: Users needing optimized image sizes for display purposes.
+- **When**: Thumbnails are generated when an image is uploaded and can be retrieved immediately after processing.
+
+</details> 

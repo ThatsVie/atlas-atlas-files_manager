@@ -33,4 +33,13 @@ router.get('/files/:id', FilesController.getShow);
 // GET /files => Lists files based on parentId with pagination
 router.get('/files', FilesController.getIndex);
 
+// PUT /files/:id/publish => Sets isPublic to true for a file
+router.put('/files/:id/publish', FilesController.putPublish);
+
+// PUT /files/:id/unpublish => Sets isPublic to false for a file
+router.put('/files/:id/unpublish', FilesController.putUnpublish);
+
+// GET /files/:id/data => Retrieves file content by ID
+router.get('/files/:id/data', FilesController.getFile);
+
 export default router;
