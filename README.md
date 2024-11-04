@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/62a695d6-1300-4941-b5d6-9d3e453432db" alt="studiousfawnpug" width="300"/>
+  <img src="https://github.com/user-attachments/assets/62a695d6-1300-4941-b5d6-9d3e453432db" alt="studiousfawnpug" width="400"/>
 </div>
 
 <h1 align="center">Files Manager Express</h1>
