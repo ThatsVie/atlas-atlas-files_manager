@@ -1,14 +1,23 @@
-# Files Manager Express
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/62a695d6-1300-4941-b5d6-9d3e453432db" alt="studiousfawnpug" width="300"/>
+</div>
 
+<h1 align="center">Files Manager Express</h1>
 
+<p align="center">
 Files Manager Express is a back-end platform built to upload, view, and manage files. This project integrates key concepts, including:
+</p>
+
 - User Authentication via token
 - File Management (List, Upload, View)
 - Permission Modification
 - Image Thumbnail Generation
 - Background Processing and Pagination
 
+<p align="center">
 This service is for learning purposes, bringing together essential back-end skills to create a functional file management system.
+</p>
+
 
 ## Resources
 
