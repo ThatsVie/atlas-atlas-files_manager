@@ -20,11 +20,42 @@ This service is for learning purposes, bringing together essential back-end skil
 - [Image Thumbnail NPM Package](https://www.npmjs.com/package/image-thumbnail)
 
 ## Learning Objectives
-- Creating an API with Express
-- Authenticating users
-- Storing data in MongoDB
-- Handling temporary data in Redis
-- Setting up and using background workers
+
+<details>
+  <summary><strong>Creating an API with Express</strong></summary>
+  
+  **Tasks Covered**: 0–10  
+  - Throughout the project, we developed a comprehensive API using Express to manage various operations such as user authentication, file handling, server status checks, and more. The API was structured by defining routes in `routes/index.js`, with each route linking to its corresponding controller. Key endpoints include user authentication (`POST /users`, `GET /connect`, `GET /disconnect`, `GET /users/me`), file management (`POST /files`, `GET /files/:id`, `GET /files/:id/data`), and server monitoring (`GET /status`, `GET /stats`). Tasks 0 to 10 contributed to the API’s development, covering various functionalities essential for a secure, user-driven file management system.
+</details>
+
+<details>
+  <summary><strong>Authenticating users</strong></summary>
+  
+  **Tasks Covered**: 3, 4  
+  - User authentication was a critical component achieved by storing session tokens in Redis and implementing secure access to user-specific data. Task 3 established user account creation with `POST /users`, while Task 4 introduced session management via the `/connect` and `/disconnect` endpoints for login and logout, respectively. Additionally, `GET /users/me` was implemented to allow users to retrieve their profile information once authenticated. These tasks ensured that only authorized users could access or modify resources tied to their account, with Redis securely handling session tokens.
+</details>
+
+<details>
+  <summary><strong>Storing data in MongoDB</strong></summary>
+  
+  **Tasks Covered**: 1, 3, 5, 6, 7  
+  - MongoDB served as the primary storage for user information and file metadata. Task 1 involved setting up the MongoDB client (`dbClient`) to establish a database connection. Task 3 covered the `POST /users` endpoint, which facilitated user account creation by storing user credentials securely in MongoDB. Task 5 added functionality for creating and storing file metadata with `POST /files`, while Task 6 introduced file retrieval with `GET /files/:id`. Task 7 allowed users to control the visibility of files by publishing and unpublishing them (`PUT /files/:id/publish` and `PUT /files/:id/unpublish`), further leveraging MongoDB to maintain accurate file status and access permissions.
+</details>
+
+<details>
+  <summary><strong>Handling temporary data in Redis</strong></summary>
+  
+  **Tasks Covered**: 0, 3, 4  
+  - Redis was implemented to handle temporary session data, specifically for managing user authentication tokens. Task 0 initialized the Redis client (`redisClient`) to connect to the Redis server. Task 3 enabled user creation (`POST /users`), and Task 4 introduced session tokens for authenticated access by implementing login (`GET /connect`) and logout (`GET /disconnect`) endpoints. Redis stored each session token temporarily, allowing for efficient token verification when accessing protected resources. This approach ensured that only authenticated users could interact with their data, enhancing overall security.
+</details>
+
+<details>
+  <summary><strong>Setting up and using background workers</strong></summary>
+  
+  **Tasks Covered**: 9  
+  - Background processing was achieved through Task 9, where a background worker using the Bull library was created to handle image thumbnail generation asynchronously. The worker (`worker.js`) listens to a Bull queue (`fileQueue`) for newly uploaded images and creates three different thumbnail sizes (500, 250, and 100 pixels) using the `image-thumbnail` module. This background processing offloaded computational tasks from the main server, improving the responsiveness and performance of the API by allowing asynchronous image processing.
+</details>
+
 
 
 
