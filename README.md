@@ -198,7 +198,7 @@ module.exports = {
 
 ### Dependencies
 
-<details> <summary>To install all dependencie, </summary>
+<details> <summary>To install all dependencies: </summary>
 
 run:
 
