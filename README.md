@@ -57,8 +57,6 @@ This service is for learning purposes, bringing together essential back-end skil
 </details>
 
 
-
-
 ## Getting Started
 
 To get started with the Files Manager Express project, ensure you have the following:
@@ -191,23 +189,59 @@ module.exports = {
 
 ### Dependencies
 
-To install all dependencies, run:
+<details> <summary>To install all dependencie, </summary>
+
+run:
 
 ```bash
 npm install
 ```
 
-| Dependency     | Version | Description                                               |
-| -------------- | ------- | --------------------------------------------------------- |
-| `express`      | ^4.17.1 | Framework for building APIs                               |
-| `mongodb`      | ^3.5.9  | MongoDB driver for Node.js                                |
-| `redis`        | ^2.8.0  | Redis client for caching                                  |
-| `image-thumbnail` | ^1.0.10 | Generates image thumbnails                          |
-| `bull`         | ^3.16.0 | Queue library for background tasks                        |
-| `uuid`         | ^8.2.0  | Generates unique identifiers for resources               |
-| `chai`, `mocha`, `eslint`  |  Testing and code linting tools                         |
+| Dependency            | Version    | Description                                                                 |
+|-----------------------|------------|-----------------------------------------------------------------------------|
+| `bull`                | ^3.29.3    | Queue library for managing background tasks                                |
+| `crypto-js`           | ^4.2.0     | Library for encryption and hashing data                                    |
+| `dotenv`              | ^16.4.5    | Loads environment variables from a `.env` file                             |
+| `express`             | ^4.17.1    | Framework for building APIs and web applications                           |
+| `image-thumbnail`     | ^1.0.17    | Utility for generating image thumbnails                                    |
+| `mime-types`          | ^2.1.27    | Provides functions for handling MIME types                                 |
+| `mongodb`             | ^3.7.4     | MongoDB driver for Node.js to interact with MongoDB                        |
+| `redis`               | ^2.8.0     | Redis client for caching and temporary data storage                        |
+| `sha1`                | ^1.1.1     | Library to generate SHA-1 hashes                                           |
+| `uuid`                | ^8.2.0     | Generates unique identifiers for resources                                 
+
+</details>
 
 ---
+
+### Dev Dependencies
+
+<details><summary>These dependencies are for development and testing purposes:</summary>
+
+| Dev Dependency           | Version     | Description                                                                 |
+|--------------------------|-------------|-----------------------------------------------------------------------------|
+| `@babel/cli`             | ^7.8.0      | CLI for Babel to transpile modern JavaScript                               |
+| `@babel/core`            | ^7.8.0      | Core Babel compiler for JavaScript                                         |
+| `@babel/node`            | ^7.8.0      | Allows running Node.js with Babel                                         |
+| `@babel/preset-env`      | ^7.8.2      | Babel preset for compiling modern JavaScript                               |
+| `@babel/register`        | ^7.8.0      | Hooks Babel into Node.js require function                                  |
+| `chai`                   | ^4.5.0      | Assertion library for unit testing                                        |
+| `chai-http`              | ^4.3.0      | Extension for `chai` to handle HTTP integration tests                      |
+| `eslint`                 | ^6.4.0      | Tool for linting and ensuring code quality                                 |
+| `eslint-config-airbnb-base` | ^14.0.0 | Airbnb’s ESLint configuration for Node.js and JavaScript                   |
+| `eslint-plugin-import`   | ^2.18.2     | ESLint plugin to support ES6+ import/export syntax                         |
+| `eslint-plugin-jest`     | ^22.17.0    | ESLint plugin for Jest testing framework                                   |
+| `mocha`                  | ^6.2.3      | Testing framework for Node.js                                              |
+| `nodemon`                | ^2.0.2      | Utility to automatically restart server during development                 |
+| `request`                | ^2.88.0     | Simplified HTTP client for Node.js                                        |
+| `sinon`                  | ^7.5.0      | Library for spies, stubs, and mocks for testing                           |
+| `supertest`              | ^7.0.0      | Library for testing HTTP requests                                         |
+
+</details>
+
+--- 
+
+
 
 ### Setup
 
